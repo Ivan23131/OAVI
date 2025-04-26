@@ -1,54 +1,49 @@
-import os
-import numpy as np
 import cv2
+import numpy as np
+import os
+
+input_folder = 'lab3/pictures_src'
+output_folder = 'lab3/pictures_results'
+
+os.makedirs(output_folder, exist_ok=True)
+
+def process_image(image_path, output_folder):
+    # Загрузка изображения в градациях серого
+    image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+
+    if image is None:
+        print(f"Не удалось загрузить изображение {image_path}.")
+        return
+
+    # Структурирующий элемент — кольцо (3x3 с 0 в центре)
+    kernel = np.array([[1, 1, 1],
+                       [1, 0, 1],
+                       [1, 1, 1]], dtype=np.uint8)
+
+    # Применяем эрозию
+    eroded_image = cv2.erode(image, kernel, iterations=1)
+
+    # Разница между оригиналом и эродированным изображением
+    diff_image = cv2.absdiff(image, eroded_image)
+
+    # Бинаризация (опционально)
+    _, binary_image = cv2.threshold(eroded_image, 127, 255, cv2.THRESH_BINARY)
+
+    # Сохранение результатов
+    base_name = os.path.basename(image_path)
+    eroded_path = os.path.join(output_folder, f"eroded_{base_name}")
+    diff_path = os.path.join(output_folder, f"diff_{base_name}")
+    binary_path = os.path.join(output_folder, f"binary_{base_name}")
+
+    cv2.imwrite(eroded_path, eroded_image)
+    cv2.imwrite(diff_path, diff_image)
+    cv2.imwrite(binary_path, binary_image)
+
+    print(f"Изображение {base_name} обработано (эрозия) и сохранено в {output_folder}.")
 
 
-
-input_folder = 'lab2/pictures_src/'
-output_folder = 'lab2/pictures_results/'
-
-def load_image(image_name):
-    return cv2.imread(os.path.join(input_folder, image_name))
-
-def save_image(image, image_name):
-    output_path = os.path.join(output_folder, image_name)
-    cv2.imwrite(output_path, image)
-
-# Приведение изображения к полутоновому
-def to_grayscale(image):
-    grayscale = 0.299 * image[:, :, 2] + 0.587 * image[:, :, 1] + 0.114 * image[:, :, 0]
-    return grayscale.astype(np.uint8)
-
-# Бинаризация изображения
-def binarize_image(grayscale_image, threshold=128):
-    binary_image = grayscale_image > threshold
-    return binary_image.astype(np.uint8) * 255
-
-# Адаптивная бинаризация Ниблэка (Окно 5x5)
-def niblack_binarization(image, window_size=5, k=-0.2):
-    grayscale_image = to_grayscale(image)
-    output_image = np.zeros_like(grayscale_image)
-    padding = window_size // 2
-
-    for i in range(padding, grayscale_image.shape[0] - padding):
-        for j in range(padding, grayscale_image.shape[1] - padding):
-            window = grayscale_image[i - padding:i + padding + 1, j - padding:j + padding + 1]
-            mean = np.mean(window)
-            std = np.std(window)
-            threshold = mean + k * std
-            output_image[i, j] = 255 if grayscale_image[i, j] > threshold else 0
-
-    return output_image
-
-image_name = 'house.png'
-
-image = load_image(image_name)
-
-grayscale_image = to_grayscale(image)
-save_image(grayscale_image, 'grayscale_' + image_name)
-
-binary_image = binarize_image(grayscale_image, threshold=108)
-save_image(binary_image, 'binary_' + image_name)
-
-niblack_binary_image = niblack_binarization(image, window_size=5, k=-0.2)
-save_image(niblack_binary_image, 'niblack_binary_' + image_name)
+# Обработка всех изображений в папке
+for image_name in os.listdir(input_folder):
+    image_path = os.path.join(input_folder, image_name)
+    if os.path.isfile(image_path):
+        process_image(image_path, output_folder)
